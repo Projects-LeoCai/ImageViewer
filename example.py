@@ -3,11 +3,11 @@ import sys
 import cv2
 from PySide import QtGui
 
-from imageviewer import ImageViewer
+from qimageviewer import QImageViewer
 
 
 app = QtGui.QApplication(sys.argv)
-v = ImageViewer()
+v = QImageViewer()
 v.setWindowTitle("Image Viewer Example")
 v.show()
 img1 = cv2.imread("pictures/1.jpg")

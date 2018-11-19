@@ -20,9 +20,9 @@ from PySide.QtCore import Qt
 __version__ = "0.1"
 
 
-class ImageViewer(QWidget):
+class QImageViewer(QWidget):
     def __init__(self):
-        super(ImageViewer, self).__init__()
+        super(QImageViewer, self).__init__()
         # parameters
         self._image = np.array([])
         self._rois: List[Roi] = []
