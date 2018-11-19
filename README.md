@@ -6,7 +6,7 @@ An Image Viewer widget based on PySide that shows images from openCV.
 * Author: Leo Cai.
 
 
-## Planed functions:
+## Planed Features:
 * Refresh rate over 60 fps.
 * Overlay texts.
 * Zooming and panning tool.
