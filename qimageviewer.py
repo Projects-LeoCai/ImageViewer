@@ -7,8 +7,6 @@ Required Modules: PySide, numpy, openCV(3.2)
 Author: Leo Cai
 """
 
-import sys
-import time
 from typing import List, Dict, Tuple
 
 import cv2
@@ -30,6 +28,10 @@ class QImageViewer(QWidget):
         self._show_rois = False
         self._show_texts = False
         self._scale_factor = 1
+        self._checkable_btns: Dict[str: QPushButton] = {}
+        self._last_tool = ""
+        self._current_tool = ""
+        self._is_panning = False
 
         # layout
         self.v_box = QVBoxLayout()
@@ -51,23 +53,91 @@ class QImageViewer(QWidget):
         # tool bar
         self.toolbar = QToolBar()
         self.v_box.addWidget(self.toolbar)
-        self.btn_zoom_in = QPushButton("Zoom in")
-        self.toolbar.addWidget(self.btn_zoom_in)
 
-        self.btn_zoom_out = QPushButton("Zoom out")
-        self.toolbar.addWidget(self.btn_zoom_out)
+        self.btn_rect = QPushButton("Rect")
+        self.btn_rect.setObjectName("Rect")
+        self.btn_rect.setToolTip("Rect(R)")
+        self.btn_rect.setShortcut("R")
+        self.btn_rect.setCheckable(True)
+        self.toolbar.addWidget(self.btn_rect)
+        self._checkable_btns["Rect"] = self.btn_rect
 
-        self.btn_zoom_fit = QPushButton("Zoom to fit")
-        self.toolbar.addWidget(self.btn_zoom_fit)
+        self.btn_oval = QPushButton("Oval")
+        self.btn_oval.setObjectName("Oval")
+        self.btn_oval.setToolTip("Oval(O)")
+        self.btn_oval.setShortcut("O")
+        self.btn_oval.setCheckable(True)
+        self.toolbar.addWidget(self.btn_oval)
+        self._checkable_btns["Oval"] = self.btn_oval
+
         self.toolbar.addSeparator()
 
-        self.btn_zoom_in.clicked.connect(self.zoom_in)
-        self.btn_zoom_out.clicked.connect(self.zoom_out)
+        self.btn_zoom = QPushButton("Zoom")
+        self.btn_zoom.setObjectName("Zoom")
+        self.btn_zoom.setToolTip("Zoom(Z)")
+        self.btn_zoom.setShortcut("Z")
+        self.btn_zoom.setCheckable(True)
+        self.toolbar.addWidget(self.btn_zoom)
+        self._checkable_btns["Zoom"] = self.btn_zoom
+
+        self.btn_zoom_fit = QPushButton("Fit")
+        self.btn_zoom_fit.setObjectName("Fit")
+        self.btn_zoom_fit.setToolTip("Fit(F)")
+        self.btn_zoom_fit.setShortcut("F")
+        self.toolbar.addWidget(self.btn_zoom_fit)
+
+        self.toolbar.addSeparator()
+
+        self.btn_panning = QPushButton("Panning")
+        self.btn_panning.setObjectName("Panning")
+        self.btn_panning.setToolTip("Panning(P/[Space])")
+        self.btn_panning.setShortcut("P")
+        self.btn_panning.setCheckable(True)
+        self.toolbar.addWidget(self.btn_panning)
+        self._checkable_btns["Panning"] = self.btn_panning
+
+        # connections
+        self.btn_rect.clicked.connect(lambda: self.check_button(self.btn_rect))
+        self.btn_oval.clicked.connect(lambda: self.check_button(self.btn_oval))
+        self.btn_zoom.clicked.connect(lambda: self.check_button(self.btn_zoom))
+        self.btn_panning.clicked.connect(lambda: self.check_button(self.btn_panning))
+        # self.btn_zoom.clicked.connect()
         self.btn_zoom_fit.clicked.connect(self.zoom_fit)
 
     def paintEvent(self, event):
         # refresh view when resize or change.
         self.refresh()
+
+    def keyPressEvent(self, event):
+        if not event.isAutoRepeat():
+            if event.key() == Qt.Key_Space:
+                # start temporary panning
+                self._is_panning = True
+                self._last_tool = self._current_tool
+                self._current_tool = "Panning"
+                self.btn_panning.setChecked(True)
+                self.setFocus()
+                event.accept()
+        else:
+            event.ignore()
+
+    def keyReleaseEvent(self, event):
+        if not event.isAutoRepeat():
+            if event.key() == Qt.Key_Space:
+                # stop temporary panning
+                self._current_tool = self._last_tool
+                self.btn_panning.setChecked(False)
+
+                try:
+                    self._checkable_btns[self._current_tool].setChecked(True)
+                except KeyError:
+                    pass    # in case of no last tool checked before space panning
+
+                self.setFocus()
+                self._is_panning = False
+                event.accept()
+        else:
+            event.ignore()
 
     def mousePressEvent(self, event):
         pos = event.globalPos()
@@ -135,6 +205,33 @@ class QImageViewer(QWidget):
         self.scene.removeItem(self._texts[name])
         self._texts.pop(name)
 
+    def show_toolbar(self, status: bool):
+        if isinstance(status, bool):
+            if status:
+                self.toolbar.show()
+            else:
+                self.toolbar.hide()
+        else:
+            raise TypeError("Status must be bool!")
+
+    def check_button(self, btn: QPushButton):
+        """
+        Check the given button, and uncheck the others
+        :param btn:
+        :return:
+        """
+        for tool_btn in self._checkable_btns.values():
+            tool_btn.setChecked(False)
+        self.setFocus()
+        if not self._is_panning:
+            self._last_tool = self._current_tool = btn.objectName()
+            btn.setChecked(True)
+        else:
+            self._last_tool = btn.objectName()
+            self._current_tool = self.btn_panning.objectName()
+            self._checkable_btns[self._last_tool].setChecked(True)
+            self.btn_panning.setChecked(True)
+
     def zoom_in(self):
         self.view.scale(1.1, 1.1)
 
@@ -143,6 +240,7 @@ class QImageViewer(QWidget):
         self.view.scale(factor, factor)
 
     def zoom_fit(self):
+        self.setFocus()
         self.view.resetMatrix()
 
 
