@@ -21,13 +21,15 @@ __version__ = "0.1"
 class QImageViewer(QWidget):
     def __init__(self):
         super(QImageViewer, self).__init__()
-        # parameters
+        # data parameters
         self._image = np.array([])
         self._rois: List[Roi] = []
         self._texts: Dict[str, QGraphicsTextItem] = {}
+
+        # GUI parameters
         self._show_rois = False
         self._show_texts = False
-        self._scale_factor = 1
+        # self._scale_factor = 1
         self._checkable_btns: Dict[str: QPushButton] = {}
         self._last_tool = ""
         self._current_tool = ""
