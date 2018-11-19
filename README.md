@@ -7,9 +7,8 @@ An Image Viewer widget based on PySide that shows images from openCV.
 
 
 ## Planed Features:
-* Refresh rate over 60 fps.
-* Overlay texts.
-* Zooming and panning tool.
-* Overlay shapes.
-* ROI drawing (Ellipse and rectangle) & programmatically setting.
-* Conversions of overlay shapes and ROIs to each other. 
+See [Issues](https://github.com/Projects-LeoCai/ImageViewer/issues)
+
+## Progress:
+See [Project](https://github.com/Projects-LeoCai/ImageViewer/projects/1)
+
