@@ -12,7 +12,7 @@ from typing import List, Dict, Tuple
 import cv2
 import numpy as np
 from PySide.QtGui import *
-from PySide.QtCore import Qt
+from PySide.QtCore import Qt, QEvent
 
 
 __version__ = "0.1"
@@ -32,12 +32,20 @@ class QImageViewer(QWidget):
         # self._scale_factor = 1
         self._checkable_btns: Dict[str: QPushButton] = {}
         self._last_tool = ""
-        self._current_tool = ""
+        self._current_tool = "Arrow"
         self._is_panning = False
 
         # layout
         self.v_box = QVBoxLayout()
         self.setLayout(self.v_box)
+
+        # tool function dict
+        self._tool_function = {"Arrow": self.arrow,
+                               "Rect": self.draw_rect,
+                               "Oval": self.draw_oval,
+                               "Zoom": self.zoom,
+                               "Fit": self.zoom_fit,
+                               "Panning": self.panning}
 
         # image view
         self.pix_map_item = QGraphicsPixmapItem()
@@ -51,10 +59,24 @@ class QImageViewer(QWidget):
         self.view.setAlignment(Qt.AlignCenter)
         self.view.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.view.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.view.viewport().installEventFilter(self)
+
+        # cursors
+        self.zoom_in_cursor = QCursor(QPixmap(r"pictures\zi.png"))
+        self.zoom_out_cursor = QCursor(QPixmap(r"pictures\zo.png"))
 
         # tool bar
         self.toolbar = QToolBar()
         self.v_box.addWidget(self.toolbar)
+
+        self.btn_arrow = QPushButton("Arrow")
+        self.btn_arrow.setObjectName("Arrow")
+        self.btn_arrow.setToolTip("Arrow(A)")
+        self.btn_arrow.setShortcut("A")
+        self.btn_arrow.setCheckable(True)
+        self.btn_arrow.setChecked(True)
+        self.toolbar.addWidget(self.btn_arrow)
+        self._checkable_btns["Arrow"] = self.btn_arrow
 
         self.btn_rect = QPushButton("Rect")
         self.btn_rect.setObjectName("Rect")
@@ -99,12 +121,24 @@ class QImageViewer(QWidget):
         self._checkable_btns["Panning"] = self.btn_panning
 
         # connections
+        self.btn_arrow.clicked.connect(lambda: self.check_button(self.btn_arrow))
         self.btn_rect.clicked.connect(lambda: self.check_button(self.btn_rect))
         self.btn_oval.clicked.connect(lambda: self.check_button(self.btn_oval))
         self.btn_zoom.clicked.connect(lambda: self.check_button(self.btn_zoom))
         self.btn_panning.clicked.connect(lambda: self.check_button(self.btn_panning))
-        # self.btn_zoom.clicked.connect()
         self.btn_zoom_fit.clicked.connect(self.zoom_fit)
+
+    @property
+    def current_tool(self):
+        return self._current_tool
+
+    @current_tool.setter
+    def current_tool(self, value: str):
+        if value == "Arrow":
+            self.view.unsetCursor()
+        elif value == "Zoom":
+            self.view.setCursor(self.zoom_in_cursor)
+        self._current_tool = value
 
     def paintEvent(self, event):
         # refresh view when resize or change.
@@ -116,10 +150,15 @@ class QImageViewer(QWidget):
                 # start temporary panning
                 self._is_panning = True
                 self._last_tool = self._current_tool
-                self._current_tool = "Panning"
+                self.current_tool = "Panning"
                 self.btn_panning.setChecked(True)
                 self.setFocus()
                 event.accept()
+
+            elif event.key() == Qt.Key_Control:
+                if self.current_tool == "Zoom":
+                    self.view.setCursor(self.zoom_out_cursor)
+
         else:
             event.ignore()
 
@@ -127,7 +166,7 @@ class QImageViewer(QWidget):
         if not event.isAutoRepeat():
             if event.key() == Qt.Key_Space:
                 # stop temporary panning
-                self._current_tool = self._last_tool
+                self.current_tool = self._last_tool
                 self.btn_panning.setChecked(False)
 
                 try:
@@ -138,13 +177,20 @@ class QImageViewer(QWidget):
                 self.setFocus()
                 self._is_panning = False
                 event.accept()
+            elif event.key() == Qt.Key_Control:
+                if self.current_tool == "Zoom":
+                    self.view.setCursor(self.zoom_in_cursor)
         else:
             event.ignore()
 
-    def mousePressEvent(self, event):
-        pos = event.globalPos()
-        pos = self.view.mapFromGlobal(pos)
-        pos = self.view.mapToScene(pos)
+    def eventFilter(self, obj, event):
+        if obj is self.view.viewport():
+            modifiers = QApplication.keyboardModifiers()
+            try:
+                self._tool_function[self._current_tool](event, modifiers)
+            except KeyError:
+                pass
+        return QWidget.eventFilter(self, obj, event)
 
     def refresh(self):
         if self._image.any():
@@ -226,24 +272,47 @@ class QImageViewer(QWidget):
             tool_btn.setChecked(False)
         self.setFocus()
         if not self._is_panning:
-            self._last_tool = self._current_tool = btn.objectName()
+            self._last_tool = self.current_tool = btn.objectName()
             btn.setChecked(True)
         else:
             self._last_tool = btn.objectName()
-            self._current_tool = self.btn_panning.objectName()
+            self.current_tool = self.btn_panning.objectName()
             self._checkable_btns[self._last_tool].setChecked(True)
             self.btn_panning.setChecked(True)
 
-    def zoom_in(self):
-        self.view.scale(1.1, 1.1)
+    def arrow(self, *args):
+        pass
 
-    def zoom_out(self):
-        factor = 1 / 1.1
-        self.view.scale(factor, factor)
+    def draw_rect(self, *args):
+        pass
 
-    def zoom_fit(self):
+    def draw_oval(self, *args):
+        pass
+
+    def zoom(self, *args):
+        event = args[0]
+        modifiers = args[1]
+        if event.type() == QEvent.MouseButtonRelease:
+            factor = 1/1.2 if modifiers == Qt.ControlModifier else 1.2
+            self.view.scale(factor, factor)
+
+            pos = event.globalPos()
+            pos = self.view.mapFromGlobal(pos)
+            pos = self.view.mapToScene(pos)
+            self.view.centerOn(pos.x(), pos.y())
+
+    def zoom_fit(self, *args):
         self.setFocus()
         self.view.resetMatrix()
+
+    def panning(self, *args):
+        pass
+
+    def coor(self, event):
+        pos = event.globalPos()
+        pos = self.view.mapFromGlobal(pos)
+        self.view.centeron(pos.x(), pos.y())
+        pos = self.view.mapToScene(pos)
 
 
 class Roi(object):
