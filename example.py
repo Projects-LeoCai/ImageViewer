@@ -8,7 +8,7 @@ from imageviewer import QImageViewer
 
 app = QtGui.QApplication(sys.argv)
 v = QImageViewer()
-v.setFixedSize(1024, 680)
+v.resize(1024, 680)
 v.setWindowTitle("Image Viewer Example")
 v.show()
 

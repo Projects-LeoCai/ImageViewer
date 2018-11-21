@@ -25,6 +25,8 @@ class QImageViewer(ImageViewerUI):
         # data parameters
         self._image = np.array([])
         self._rois: List[Roi] = []
+
+        # todo: put texts in a item group
         self._texts: Dict[str, QGraphicsTextItem] = {}
 
         # GUI parameters
@@ -32,7 +34,10 @@ class QImageViewer(ImageViewerUI):
         self._show_texts = False
         self._last_tool = ""
         self._current_tool = "Arrow"
-        self._is_panning = False
+        self.temporary_pan_flag = False
+        self._panning = {"flag": False,
+                         "x": 0,
+                         "y": 0}
 
         # tool function dict
         self._tool_function = {"Arrow": self.arrow,
@@ -60,35 +65,26 @@ class QImageViewer(ImageViewerUI):
         self.btn_pan.clicked.connect(lambda: self.check_button(self.btn_pan))
         self.btn_zoom_fit.clicked.connect(self.zoom_fit)
 
-    @property
-    def current_tool(self):
-        return self._current_tool
-
-    @current_tool.setter
-    def current_tool(self, value: str):
-        if value == "Arrow":
-            self.view.unsetCursor()
-        elif value == "Zoom":
-            self.view.setCursor(self.zoom_in_cursor)
-        self._current_tool = value
-
-    def paintEvent(self, event):
+    def resizeEvent(self, *args, **kwargs):
         # refresh view when resize or change.
+        self.refresh()
+
+    def changeEvent(self, *args, **kwargs):
         self.refresh()
 
     def keyPressEvent(self, event):
         if not event.isAutoRepeat():
             if event.key() == Qt.Key_Space:
                 # start temporary pan
-                self._is_panning = True
                 self._last_tool = self._current_tool
-                self.current_tool = "Pan"
+                self._current_tool = "Pan"
                 self.btn_pan.setChecked(True)
+                self.temporary_pan_flag = True
                 self.setFocus()
                 event.accept()
 
             elif event.key() == Qt.Key_Control:
-                if self.current_tool == "Zoom":
+                if self._current_tool == "Zoom":
                     self.view.setCursor(self.zoom_out_cursor)
 
         else:
@@ -98,8 +94,9 @@ class QImageViewer(ImageViewerUI):
         if not event.isAutoRepeat():
             if event.key() == Qt.Key_Space:
                 # stop temporary pan
-                self.current_tool = self._last_tool
+                self._current_tool = self._last_tool
                 self.btn_pan.setChecked(False)
+                self.temporary_pan_flag = False
 
                 try:
                     self._checkable_btns[self._current_tool].setChecked(True)
@@ -107,10 +104,9 @@ class QImageViewer(ImageViewerUI):
                     pass    # in case of no last tool checked before temporary panning
 
                 self.setFocus()
-                self._is_panning = False
                 event.accept()
             elif event.key() == Qt.Key_Control:
-                if self.current_tool == "Zoom":
+                if self._current_tool == "Zoom":
                     self.view.setCursor(self.zoom_in_cursor)
         else:
             event.ignore()
@@ -196,24 +192,25 @@ class QImageViewer(ImageViewerUI):
 
     def check_button(self, btn: QPushButton):
         """
-        Check the given button, and uncheck the others
+        Check the given button, uncheck the others and set the current tool.
         :param btn:
         :return:
         """
         for tool_btn in self._checkable_btns.values():
             tool_btn.setChecked(False)
         self.setFocus()
-        if not self._is_panning:
-            self._last_tool = self.current_tool = btn.objectName()
-            btn.setChecked(True)
-        else:
+
+        if self.temporary_pan_flag:
             self._last_tool = btn.objectName()
-            self.current_tool = self.btn_pan.objectName()
             self._checkable_btns[self._last_tool].setChecked(True)
             self.btn_pan.setChecked(True)
+        else:
+            self._last_tool = self._current_tool = btn.objectName()
+
+            btn.setChecked(True)
 
     def arrow(self, *args):
-        pass
+        self.view.unsetCursor()
 
     def draw_rect(self, *args):
         pass
@@ -224,27 +221,56 @@ class QImageViewer(ImageViewerUI):
     def zoom(self, *args):
         event = args[0]
         modifiers = args[1]
+
+        cursor = self.zoom_out_cursor if modifiers == Qt.ControlModifier else self.zoom_in_cursor
+        self.view.setCursor(cursor)
+
         if event.type() == QEvent.MouseButtonRelease:
             factor = 1/1.2 if modifiers == Qt.ControlModifier else 1.2
             self.view.scale(factor, factor)
-
-            pos = event.globalPos()
-            pos = self.view.mapFromGlobal(pos)
-            pos = self.view.mapToScene(pos)
+            pos = self.scene_pos(event)
             self.view.centerOn(pos.x(), pos.y())
 
     def zoom_fit(self, *args):
         self.setFocus()
         self.view.resetMatrix()
+        self.pix_map_item.setPos(0, 0)
 
     def pan(self, *args):
-        pass
+        event = args[0]
 
-    def coor(self, event):
+        self.view.setCursor(Qt.OpenHandCursor)
+
+        if event.type() == QEvent.MouseButtonPress:
+            pos = self.scene_pos(event)
+            self._panning["flag"] = True
+            self._panning["x"] = pos.x()
+            self._panning["y"] = pos.y()
+
+        elif event.type() == QEvent.MouseMove:
+            if self._panning["flag"]:
+                pos = self.scene_pos(event)
+                dx = pos.x() - self._panning['x']
+                dy = pos.y() - self._panning['y']
+                self.pix_map_item.moveBy(dx, dy)
+                self._panning["x"] = pos.x()
+                self._panning["y"] = pos.y()
+
+        elif event.type() == QEvent.MouseButtonRelease:
+            self._panning["flag"] = False
+            self._panning["x"] = 0
+            self._panning["y"] = 0
+
+    def scene_pos(self, event: QMouseEvent):
+        """
+        Map the mouse position to self.scene from QMouseEvent
+        :param event: QMouseEvent
+        :return: Mapped mouse position
+        """
         pos = event.globalPos()
         pos = self.view.mapFromGlobal(pos)
-        self.view.centeron(pos.x(), pos.y())
         pos = self.view.mapToScene(pos)
+        return pos
 
 
 class Roi(object):

@@ -1,3 +1,7 @@
+"""
+UI of ImageViewer
+"""
+
 from PySide.QtGui import *
 from PySide.QtCore import Qt
 
