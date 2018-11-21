@@ -65,12 +65,16 @@ class QImageViewer(ImageViewerUI):
         self.btn_pan.clicked.connect(lambda: self.check_button(self.btn_pan))
         self.btn_zoom_fit.clicked.connect(self.zoom_fit)
 
-    def resizeEvent(self, *args, **kwargs):
+    def resizeEvent(self, event):
         # refresh view when resize or change.
+        self.zoom_fit()
         self.refresh()
+        event.accept()
 
-    def changeEvent(self, *args, **kwargs):
+    def changeEvent(self, event):
+        self.zoom_fit()
         self.refresh()
+        event.accept()
 
     def keyPressEvent(self, event):
         if not event.isAutoRepeat():
