@@ -14,11 +14,12 @@ import numpy as np
 from PySide.QtGui import *
 from PySide.QtCore import Qt, QEvent
 
+from ui_imageviewer import ImageViewerUI
 
 __version__ = "0.1"
 
 
-class QImageViewer(QWidget):
+class QImageViewer(ImageViewerUI):
     def __init__(self):
         super(QImageViewer, self).__init__()
         # data parameters
@@ -29,15 +30,9 @@ class QImageViewer(QWidget):
         # GUI parameters
         self._show_rois = False
         self._show_texts = False
-        # self._scale_factor = 1
-        self._checkable_btns: Dict[str: QPushButton] = {}
         self._last_tool = ""
         self._current_tool = "Arrow"
         self._is_panning = False
-
-        # layout
-        self.v_box = QVBoxLayout()
-        self.setLayout(self.v_box)
 
         # tool function dict
         self._tool_function = {"Arrow": self.arrow,
@@ -45,87 +40,24 @@ class QImageViewer(QWidget):
                                "Oval": self.draw_oval,
                                "Zoom": self.zoom,
                                "Fit": self.zoom_fit,
-                               "Panning": self.panning}
+                               "Pan": self.pan}
 
-        # image view
-        self.pix_map_item = QGraphicsPixmapItem()
-        self.scene = QGraphicsScene()
-        self.scene.setSceneRect(0, 0, 0, 0)
-        self.scene.addItem(self.pix_map_item)
+        # checkable
+        self._checkable_btns = {"Arrow": self.btn_arrow,
+                                "Rect": self.btn_rect,
+                                "Oval": self.btn_oval,
+                                "Zoom": self.btn_zoom,
+                                "Pan": self.btn_pan}
 
-        self.view = QGraphicsView(self.scene)
-        self.v_box.addWidget(self.view)
-        self.view.setMinimumSize(400, 300)
-        self.view.setAlignment(Qt.AlignCenter)
-        self.view.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        self.view.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        # catch up events from view
         self.view.viewport().installEventFilter(self)
-
-        # cursors
-        self.zoom_in_cursor = QCursor(QPixmap(r"pictures\zi.png"))
-        self.zoom_out_cursor = QCursor(QPixmap(r"pictures\zo.png"))
-
-        # tool bar
-        self.toolbar = QToolBar()
-        self.v_box.addWidget(self.toolbar)
-
-        self.btn_arrow = QPushButton("Arrow")
-        self.btn_arrow.setObjectName("Arrow")
-        self.btn_arrow.setToolTip("Arrow(A)")
-        self.btn_arrow.setShortcut("A")
-        self.btn_arrow.setCheckable(True)
-        self.btn_arrow.setChecked(True)
-        self.toolbar.addWidget(self.btn_arrow)
-        self._checkable_btns["Arrow"] = self.btn_arrow
-
-        self.btn_rect = QPushButton("Rect")
-        self.btn_rect.setObjectName("Rect")
-        self.btn_rect.setToolTip("Rect(R)")
-        self.btn_rect.setShortcut("R")
-        self.btn_rect.setCheckable(True)
-        self.toolbar.addWidget(self.btn_rect)
-        self._checkable_btns["Rect"] = self.btn_rect
-
-        self.btn_oval = QPushButton("Oval")
-        self.btn_oval.setObjectName("Oval")
-        self.btn_oval.setToolTip("Oval(O)")
-        self.btn_oval.setShortcut("O")
-        self.btn_oval.setCheckable(True)
-        self.toolbar.addWidget(self.btn_oval)
-        self._checkable_btns["Oval"] = self.btn_oval
-
-        self.toolbar.addSeparator()
-
-        self.btn_zoom = QPushButton("Zoom")
-        self.btn_zoom.setObjectName("Zoom")
-        self.btn_zoom.setToolTip("Zoom(Z)")
-        self.btn_zoom.setShortcut("Z")
-        self.btn_zoom.setCheckable(True)
-        self.toolbar.addWidget(self.btn_zoom)
-        self._checkable_btns["Zoom"] = self.btn_zoom
-
-        self.btn_zoom_fit = QPushButton("Fit")
-        self.btn_zoom_fit.setObjectName("Fit")
-        self.btn_zoom_fit.setToolTip("Fit(F)")
-        self.btn_zoom_fit.setShortcut("F")
-        self.toolbar.addWidget(self.btn_zoom_fit)
-
-        self.toolbar.addSeparator()
-
-        self.btn_panning = QPushButton("Panning")
-        self.btn_panning.setObjectName("Panning")
-        self.btn_panning.setToolTip("Panning(P/[Space])")
-        self.btn_panning.setShortcut("P")
-        self.btn_panning.setCheckable(True)
-        self.toolbar.addWidget(self.btn_panning)
-        self._checkable_btns["Panning"] = self.btn_panning
 
         # connections
         self.btn_arrow.clicked.connect(lambda: self.check_button(self.btn_arrow))
         self.btn_rect.clicked.connect(lambda: self.check_button(self.btn_rect))
         self.btn_oval.clicked.connect(lambda: self.check_button(self.btn_oval))
         self.btn_zoom.clicked.connect(lambda: self.check_button(self.btn_zoom))
-        self.btn_panning.clicked.connect(lambda: self.check_button(self.btn_panning))
+        self.btn_pan.clicked.connect(lambda: self.check_button(self.btn_pan))
         self.btn_zoom_fit.clicked.connect(self.zoom_fit)
 
     @property
@@ -147,11 +79,11 @@ class QImageViewer(QWidget):
     def keyPressEvent(self, event):
         if not event.isAutoRepeat():
             if event.key() == Qt.Key_Space:
-                # start temporary panning
+                # start temporary pan
                 self._is_panning = True
                 self._last_tool = self._current_tool
-                self.current_tool = "Panning"
-                self.btn_panning.setChecked(True)
+                self.current_tool = "Pan"
+                self.btn_pan.setChecked(True)
                 self.setFocus()
                 event.accept()
 
@@ -165,14 +97,14 @@ class QImageViewer(QWidget):
     def keyReleaseEvent(self, event):
         if not event.isAutoRepeat():
             if event.key() == Qt.Key_Space:
-                # stop temporary panning
+                # stop temporary pan
                 self.current_tool = self._last_tool
-                self.btn_panning.setChecked(False)
+                self.btn_pan.setChecked(False)
 
                 try:
                     self._checkable_btns[self._current_tool].setChecked(True)
                 except KeyError:
-                    pass    # in case of no last tool checked before space panning
+                    pass    # in case of no last tool checked before temporary panning
 
                 self.setFocus()
                 self._is_panning = False
@@ -276,9 +208,9 @@ class QImageViewer(QWidget):
             btn.setChecked(True)
         else:
             self._last_tool = btn.objectName()
-            self.current_tool = self.btn_panning.objectName()
+            self.current_tool = self.btn_pan.objectName()
             self._checkable_btns[self._last_tool].setChecked(True)
-            self.btn_panning.setChecked(True)
+            self.btn_pan.setChecked(True)
 
     def arrow(self, *args):
         pass
@@ -305,7 +237,7 @@ class QImageViewer(QWidget):
         self.setFocus()
         self.view.resetMatrix()
 
-    def panning(self, *args):
+    def pan(self, *args):
         pass
 
     def coor(self, event):
