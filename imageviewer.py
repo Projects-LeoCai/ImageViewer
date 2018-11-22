@@ -80,6 +80,7 @@ class QImageViewer(ImageViewerUI):
         if not event.isAutoRepeat():
             if event.key() == Qt.Key_Space:
                 # start temporary pan
+                self.view.setCursor(Qt.OpenHandCursor)
                 self._last_tool = self._current_tool
                 self._current_tool = "Pan"
                 self.btn_pan.setChecked(True)
@@ -104,6 +105,7 @@ class QImageViewer(ImageViewerUI):
 
                 try:
                     self._checkable_btns[self._current_tool].setChecked(True)
+                    self._tool_function[self._current_tool](event, QApplication.keyboardModifiers())
                 except KeyError:
                     pass    # in case of no last tool checked before temporary panning
 
