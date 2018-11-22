@@ -88,7 +88,7 @@ class QImageViewer(ImageViewerUI):
                 self.setFocus()
                 event.accept()
 
-            elif event.key() == Qt.Key_Control:
+            elif event.key() == Qt.Key_Alt:
                 if self._current_tool == "Zoom":
                     self.view.setCursor(self.zoom_out_cursor)
 
@@ -111,7 +111,7 @@ class QImageViewer(ImageViewerUI):
 
                 self.setFocus()
                 event.accept()
-            elif event.key() == Qt.Key_Control:
+            elif event.key() == Qt.Key_Alt:
                 if self._current_tool == "Zoom":
                     self.view.setCursor(self.zoom_in_cursor)
         else:
@@ -228,11 +228,11 @@ class QImageViewer(ImageViewerUI):
         event = args[0]
         modifiers = args[1]
 
-        cursor = self.zoom_out_cursor if modifiers == Qt.ControlModifier else self.zoom_in_cursor
+        cursor = self.zoom_out_cursor if modifiers == Qt.AltModifier else self.zoom_in_cursor
         self.view.setCursor(cursor)
 
         if event.type() == QEvent.MouseButtonRelease:
-            factor = 1/1.2 if modifiers == Qt.ControlModifier else 1.2
+            factor = 1/1.2 if modifiers == Qt.AltModifier else 1.2
             self.view.scale(factor, factor)
             pos = self.scene_pos(event)
             self.view.centerOn(pos.x(), pos.y())
