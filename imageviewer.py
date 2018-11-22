@@ -25,6 +25,7 @@ class QImageViewer(ImageViewerUI):
         # data parameters
         self._image = np.array([])
         self._rois: List[Roi] = []
+        self.roi = None
 
         self._texts: Dict[str, QGraphicsTextItem] = {}
 
@@ -35,6 +36,9 @@ class QImageViewer(ImageViewerUI):
         self._current_tool = "Arrow"
         self.temporary_pan_flag = False
         self._panning = {"flag": False,
+                         "x": 0,
+                         "y": 0}
+        self._drawing = {"flag": False,
                          "x": 0,
                          "y": 0}
 
@@ -65,12 +69,21 @@ class QImageViewer(ImageViewerUI):
         self.btn_zoom_fit.clicked.connect(self.zoom_fit)
 
     def resizeEvent(self, event):
-        # refresh view when resize or change.
+        """
+        Reset Image when window is resized.
+        :param event:
+        :return:
+        """
         self.zoom_fit()
         self.refresh()
         event.accept()
 
     def changeEvent(self, event):
+        """
+        Reset Image when window is changed.
+        :param event:
+        :return:
+        """
         self.zoom_fit()
         self.refresh()
         event.accept()
@@ -175,7 +188,7 @@ class QImageViewer(ImageViewerUI):
                  position: Tuple[int, int] = (0, 0)
                  ):
         item: QGraphicsTextItem = self.scene.addText(txt)
-        self.text_item_group.addToGroup(item)
+        self.text_group.addToGroup(item)
         item.setPos(position[0], position[1])
         item.setDefaultTextColor(QColor(color[0], color[1], color[2]))
         self._texts[name] = item
@@ -219,7 +232,31 @@ class QImageViewer(ImageViewerUI):
         self.view.unsetCursor()
 
     def draw_rect(self, *args):
-        pass
+        event = args[0]
+        self.view.setCursor(Qt.CrossCursor)
+
+        if event.type() == QEvent.MouseButtonPress:
+            pos = self.scene_pos(event)
+            self.roi = QGraphicsRectItem(pos.x(), pos.y(), 0, 0)
+            self.roi.setPen(QPen(Qt.green))
+            self.scene.addItem(self.roi)
+            self._drawing["flag"] = True
+            self._drawing["x"] = pos.x()
+            self._drawing["y"] = pos.y()
+
+        elif event.type() == QEvent.MouseMove:
+            if self._drawing["flag"]:
+                pos = self.scene_pos(event)
+                self.roi.setRect(self._drawing["x"], self._drawing["y"], pos.x() - self._drawing["x"], pos.y() - self._drawing["y"])
+
+        elif event.type() == QEvent.MouseButtonRelease:
+            self._drawing["flag"] = False
+
+
+
+
+
+
 
     def draw_oval(self, *args):
         pass
@@ -241,7 +278,7 @@ class QImageViewer(ImageViewerUI):
         self.setFocus()
         self.view.resetMatrix()
         self.pix_map_item.setPos(0, 0)
-        self.text_item_group.setPos(0, 0)
+        self.text_group.setPos(0, 0)
 
     def pan(self, *args):
         event = args[0]
@@ -260,7 +297,7 @@ class QImageViewer(ImageViewerUI):
                 dx = pos.x() - self._panning['x']
                 dy = pos.y() - self._panning['y']
                 self.pix_map_item.moveBy(dx, dy)
-                self.text_item_group.moveBy(dx, dy)
+                self.text_group.moveBy(dx, dy)
                 self._panning["x"] = pos.x()
                 self._panning["y"] = pos.y()
 

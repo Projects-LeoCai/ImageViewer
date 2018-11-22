@@ -26,8 +26,10 @@ class ImageViewerUI(QWidget):
         self.view.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.view.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
 
-        self.text_item_group = QGraphicsItemGroup()
-        self.scene.addItem(self.text_item_group)
+        self.text_group = QGraphicsItemGroup()
+        self.roi_group = QGraphicsItemGroup()
+        self.scene.addItem(self.text_group)
+        self.scene.addItem(self.roi_group)
 
         # cursors
         self.zoom_in_cursor = QCursor(QPixmap(r"pictures\zi.png"))
