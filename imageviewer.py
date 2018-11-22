@@ -26,7 +26,6 @@ class QImageViewer(ImageViewerUI):
         self._image = np.array([])
         self._rois: List[Roi] = []
 
-        # todo: put texts in a item group
         self._texts: Dict[str, QGraphicsTextItem] = {}
 
         # GUI parameters
@@ -176,6 +175,7 @@ class QImageViewer(ImageViewerUI):
                  position: Tuple[int, int] = (0, 0)
                  ):
         item: QGraphicsTextItem = self.scene.addText(txt)
+        self.text_item_group.addToGroup(item)
         item.setPos(position[0], position[1])
         item.setDefaultTextColor(QColor(color[0], color[1], color[2]))
         self._texts[name] = item
@@ -241,6 +241,7 @@ class QImageViewer(ImageViewerUI):
         self.setFocus()
         self.view.resetMatrix()
         self.pix_map_item.setPos(0, 0)
+        self.text_item_group.setPos(0, 0)
 
     def pan(self, *args):
         event = args[0]
@@ -259,6 +260,7 @@ class QImageViewer(ImageViewerUI):
                 dx = pos.x() - self._panning['x']
                 dy = pos.y() - self._panning['y']
                 self.pix_map_item.moveBy(dx, dy)
+                self.text_item_group.moveBy(dx, dy)
                 self._panning["x"] = pos.x()
                 self._panning["y"] = pos.y()
 
