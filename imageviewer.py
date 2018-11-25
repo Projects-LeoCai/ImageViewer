@@ -93,7 +93,7 @@ class QImageViewer(ImageViewerUI):
         if not event.isAutoRepeat():
             if event.key() == Qt.Key_Space:
                 # start temporary pan
-                self.view.setCursor(Qt.OpenHandCursor)
+                self.view.viewport().setCursor(Qt.OpenHandCursor)
                 self._last_tool = self._current_tool
                 self._current_tool = "Pan"
                 self.btn_pan.setChecked(True)
@@ -103,7 +103,7 @@ class QImageViewer(ImageViewerUI):
 
             elif event.key() == Qt.Key_Alt:
                 if self._current_tool == "Zoom":
-                    self.view.setCursor(self.zoom_out_cursor)
+                    self.view.viewport().setCursor(self.zoom_out_cursor)
 
         else:
             event.ignore()
@@ -126,7 +126,7 @@ class QImageViewer(ImageViewerUI):
                 event.accept()
             elif event.key() == Qt.Key_Alt:
                 if self._current_tool == "Zoom":
-                    self.view.setCursor(self.zoom_in_cursor)
+                    self.view.viewport().setCursor(self.zoom_in_cursor)
         else:
             event.ignore()
 
@@ -241,7 +241,7 @@ class QImageViewer(ImageViewerUI):
             else:
                 cursor = Qt.ArrowCursor
 
-            self.view.setCursor(cursor)
+            self.view.viewport().setCursor(cursor)
 
             btn.setChecked(True)
 
@@ -250,7 +250,7 @@ class QImageViewer(ImageViewerUI):
 
     def draw_roi(self, roi_type: RoiType, *args):
         event = args[0]
-        # self.view.setCursor(Qt.CrossCursor)
+        # self.view.viewport().setCursor(Qt.CrossCursor)
 
         if event.type() == QEvent.GraphicsSceneMousePress:
             # pos = self.scene_pos(event)
@@ -287,7 +287,7 @@ class QImageViewer(ImageViewerUI):
         modifiers = args[1]
 
         cursor = self.zoom_out_cursor if modifiers == Qt.AltModifier else self.zoom_in_cursor
-        self.view.setCursor(cursor)
+        self.view.viewport().setCursor(cursor)
 
         if event.type() == QEvent.GraphicsSceneMouseRelease:
             factor = 1/1.2 if modifiers == Qt.AltModifier else 1.2
@@ -304,7 +304,7 @@ class QImageViewer(ImageViewerUI):
     def pan(self, *args):
         event = args[0]
 
-        # self.view.setCursor(Qt.OpenHandCursor)
+        # self.view.viewport().setCursor(Qt.OpenHandCursor)
 
         if event.type() == QEvent.GraphicsSceneMousePress:
             pos = event.scenePos()
