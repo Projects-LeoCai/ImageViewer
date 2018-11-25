@@ -27,9 +27,13 @@ class ImageViewerUI(QWidget):
         self.view.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
 
         self.text_group = QGraphicsItemGroup()
+        self.text_group.setHandlesChildEvents(False)
         self.roi_group = QGraphicsItemGroup()
+        self.roi_group.setHandlesChildEvents(False)
+        self.overlay_group = QGraphicsItemGroup()
         self.scene.addItem(self.text_group)
         self.scene.addItem(self.roi_group)
+        self.scene.addItem(self.overlay_group)
 
         # cursors
         self.zoom_in_cursor = QCursor(QPixmap(r"pictures\zi.png"))
@@ -56,12 +60,12 @@ class ImageViewerUI(QWidget):
         self.btn_rect.setCheckable(True)
         self.toolbar.addWidget(self.btn_rect)
 
-        self.btn_oval = QPushButton("Oval")
-        self.btn_oval.setObjectName("Oval")
-        self.btn_oval.setToolTip("Oval(O)")
-        self.btn_oval.setShortcut("O")
-        self.btn_oval.setCheckable(True)
-        self.toolbar.addWidget(self.btn_oval)
+        self.btn_ellipse = QPushButton("Ellipse")
+        self.btn_ellipse.setObjectName("Ellipse")
+        self.btn_ellipse.setToolTip("Ellipse(E)")
+        self.btn_ellipse.setShortcut("E")
+        self.btn_ellipse.setCheckable(True)
+        self.toolbar.addWidget(self.btn_ellipse)
 
         self.toolbar.addSeparator()
 
