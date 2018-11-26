@@ -275,6 +275,11 @@ class QGraphicsRoiItem(QGraphicsRectItem):
                 painter.drawEllipse(rect)
 
     def set_mutable(self, status: bool):
+        """
+        set the item mutable or immutable.
+        :param status:
+        :return:
+        """
         self.setAcceptHoverEvents(status)
         self.setAcceptedMouseButtons(status)
         self.setFlag(QGraphicsItem.ItemIsMovable, status)
