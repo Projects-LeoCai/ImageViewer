@@ -12,7 +12,7 @@ from typing import List, Dict, Tuple, Set
 import cv2
 import numpy as np
 from PySide.QtGui import *
-from PySide.QtCore import Qt, QEvent, QPointF
+from PySide.QtCore import Qt, QEvent, QPointF, QRectF
 
 from ui_imageviewer import ImageViewerUI
 from roi import RoiType, QGraphicsRoiItem
@@ -41,6 +41,10 @@ class QImageViewer(ImageViewerUI):
         self._drawing = {"flag": False,
                          "x": 0,
                          "y": 0}
+        self._selecting = {"flag": False,
+                           "x": 0,
+                           "y": 0,
+                           "rect": QGraphicsRectItem(0, 0, 0, 0)}
 
         # tool function dict
         self._tool_function = {"Arrow": self._arrow,
@@ -147,6 +151,16 @@ class QImageViewer(ImageViewerUI):
                 pass
         return QWidget.eventFilter(self, obj, event)
 
+    @staticmethod
+    def is_overlap(rect1: QRectF, rect2: QRectF):
+        if rect1.x() + rect1.width() > rect2.x() and\
+                rect2.x() + rect2.width() > rect1.x() and\
+                rect1.y() + rect1.height() > rect2.y() and\
+                rect2.y() + rect2.height() > rect1.y():
+            return True
+        else:
+            return False
+
     def _check_button(self, btn: QPushButton):
         """
         Check the given button, uncheck the others and set the current tool.
@@ -183,18 +197,69 @@ class QImageViewer(ImageViewerUI):
 
     def _arrow(self, *args):
         event = args[0]
-        modifier = args[1]
-
-        start_point: QPointF = QPointF(0, 0)
+        modifier = args[1]  # for duplication
 
         if event.type() == QEvent.GraphicsSceneMousePress:
             pos = event.scenePos()
-            start_point.setX(pos.x())
-            start_point.setY(pos.y())
+
+            # to check if mouse pressed in an ROI
+            is_in_roi = False
+            for roi in self._rois:
+                is_in_roi = self.is_overlap(roi.sceneBoundingRect(), QRectF(pos.x(), pos.y(), 0, 0))
+                if is_in_roi:
+                    break
+
+            if not is_in_roi:
+                # trigger the selecting mode if not in roi
+                self._selecting["x"] = pos.x()
+                self._selecting["y"] = pos.y()
+                self._selecting["flag"] = True
+
+                # show selecting rectangle
+                self._selecting["rect"].setRect(pos.x(), pos.y(), 0, 0)
+                self._selecting["rect"].setFlag(QGraphicsItem.ItemIsSelectable, True)
+                self.scene.addItem(self._selecting["rect"])
 
         elif event.type() == QEvent.GraphicsSceneMouseMove:
-            pass
-        # todo：ROI selection by mouse
+            if self._selecting["flag"]:
+                # update selecting rectangle and rois when moving mouse
+                end_point = event.scenePos()
+
+                # update selecting rectangle
+                x0 = min((self._selecting["x"], end_point.x()))
+                y0 = min((self._selecting["y"], end_point.y()))
+                width = abs(self._selecting["x"] - end_point.x())
+                height = abs(self._selecting["y"] - end_point.y())
+                self._selecting["rect"].setRect(x0, y0, width, height)
+                self._selecting["rect"].setSelected(True)
+
+                # update outlooking of the ROIs
+                for roi in self._rois:
+                    if self.is_overlap(roi.sceneBoundingRect(), self._selecting["rect"].rect()):
+                        # overlapped means selected roi
+                        roi.setSelected(True)
+                        roi.set_show_handle(True)
+                    else:
+                        # not selected
+                        roi.setSelected(False)
+                        roi.set_show_handle(False)
+
+                    # repaint roi
+                    roi.update()
+
+        elif event.type() == QEvent.GraphicsSceneMouseRelease:
+            end_point = event.scenePos()
+            if self._selecting["flag"]:
+                # disable selecting mode.
+                self.scene.removeItem(self._selecting["rect"])
+                self._selecting["flag"] = False
+
+                if self._selecting["x"] == end_point.x() and self._selecting["y"] == end_point.y():
+                    # deselect all rois when click mouse in background
+                    for roi in self._rois:
+                        roi.setSelected(False)
+                        roi.set_show_handle(False)
+                        roi.update()
 
     def _draw_roi(self, roi_type: RoiType, *args):
         event = args[0]

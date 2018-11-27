@@ -54,15 +54,11 @@ class QGraphicsRoiItem(QGraphicsRectItem):
         self.update_handles_pos()
 
     def focusOutEvent(self, *args, **kwargs):
-        self.handleSize = 0
-        self.handleSpace = 4
-        self.update_handles_pos()
+        self.set_show_handle(False)
         self.unsetCursor()
 
     def focusInEvent(self, *args, **kwargs):
-        self.handleSize = +8.0
-        self.handleSpace = -4.0
-        self.update_handles_pos()
+        self.set_show_handle(True)
 
     def handle_at(self, point):
         """
@@ -286,4 +282,14 @@ class QGraphicsRoiItem(QGraphicsRectItem):
         self.setFlag(QGraphicsItem.ItemIsSelectable, status)
         self.setFlag(QGraphicsItem.ItemSendsGeometryChanges, status)
         self.setFlag(QGraphicsItem.ItemIsFocusable, status)
+
+    def set_show_handle(self, status: bool):
+        if status:
+            self.handleSize = +8
+            self.handleSpace = -4
+            self.update_handles_pos()
+        else:
+            self.handleSize = 0
+            self.handleSpace = 4
+            self.update_handles_pos()
 
