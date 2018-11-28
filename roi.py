@@ -273,8 +273,6 @@ class QGraphicsRoiItem(QGraphicsRectItem):
     def set_mutable(self, status: bool):
         """
         set the item mutable or immutable.
-        :param status:
-        :return:
         """
         self.setAcceptHoverEvents(status)
         self.setAcceptedMouseButtons(status)

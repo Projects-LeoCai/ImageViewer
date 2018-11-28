@@ -27,6 +27,7 @@ class QImageViewer(ImageViewerUI):
         self._image = np.array([])
         self._roi_color: Qt.GlobalColor = Qt.green
         self._rois: Set[QGraphicsRectItem] = set()
+        self._duplicated_rois: Set[QGraphicsRectItem] = set()
         self._texts: Dict[str, QGraphicsTextItem] = {}
 
         # GUI parameters
@@ -201,24 +202,41 @@ class QImageViewer(ImageViewerUI):
 
         if event.type() == QEvent.GraphicsSceneMousePress:
             pos = event.scenePos()
+            if modifier == Qt.ControlModifier:
 
-            # to check if mouse pressed in an ROI
-            is_in_roi = False
-            for roi in self._rois:
-                is_in_roi = self.is_overlap(roi.sceneBoundingRect(), QRectF(pos.x(), pos.y(), 0, 0))
-                if is_in_roi:
-                    break
+                if not any([roi.isSelected() for roi in self._rois]):
+                    for roi in self._rois:
+                        if self.is_overlap(roi.sceneBoundingRect(), QRectF(pos.x(), pos.y(), 0, 0)):
+                            roi.setSelected(True)
+                            break
 
-            if not is_in_roi:
-                # trigger the selecting mode if not in roi
-                self._selecting["x"] = pos.x()
-                self._selecting["y"] = pos.y()
-                self._selecting["flag"] = True
+                self._duplicated_rois = self._duplicate_roi()
+                for roi in self._rois:
+                    roi.setSelected(False)
+                    roi.set_show_handle(False)
 
-                # show selecting rectangle
-                self._selecting["rect"].setRect(pos.x(), pos.y(), 0, 0)
-                self._selecting["rect"].setFlag(QGraphicsItem.ItemIsSelectable, True)
-                self.scene.addItem(self._selecting["rect"])
+                for roi in self._duplicated_rois:
+                    roi.setSelected(True)
+                    roi.set_show_handle(False)
+
+            else:
+                # to check if mouse pressed in an ROI
+                is_in_roi = False
+                for roi in self._rois:
+                    is_in_roi = self.is_overlap(roi.sceneBoundingRect(), QRectF(pos.x(), pos.y(), 0, 0))
+                    if is_in_roi:
+                        break
+
+                if not is_in_roi:
+                    # trigger the selecting mode if not in roi
+                    self._selecting["x"] = pos.x()
+                    self._selecting["y"] = pos.y()
+                    self._selecting["flag"] = True
+
+                    # show selecting rectangle
+                    self._selecting["rect"].setRect(pos.x(), pos.y(), 0, 0)
+                    self._selecting["rect"].setFlag(QGraphicsItem.ItemIsSelectable, True)
+                    self.scene.addItem(self._selecting["rect"])
 
         elif event.type() == QEvent.GraphicsSceneMouseMove:
             if self._selecting["flag"]:
@@ -252,7 +270,6 @@ class QImageViewer(ImageViewerUI):
             if self._selecting["flag"]:
                 # disable selecting mode.
                 self.scene.removeItem(self._selecting["rect"])
-                self._selecting["flag"] = False
 
                 if self._selecting["x"] == end_point.x() and self._selecting["y"] == end_point.y():
                     # deselect all rois when click mouse in background
@@ -260,6 +277,14 @@ class QImageViewer(ImageViewerUI):
                         roi.setSelected(False)
                         roi.set_show_handle(False)
                         roi.update()
+
+            self._selecting["flag"] = False
+            self._rois = self._rois | self._duplicated_rois
+
+            for roi in self._duplicated_rois:
+                roi.setSelected(False)
+                roi.set_show_handle(False)
+            self._duplicated_rois = set()
 
     def _draw_roi(self, roi_type: RoiType, *args):
         event = args[0]
@@ -285,6 +310,23 @@ class QImageViewer(ImageViewerUI):
 
         elif event.type() == QEvent.GraphicsSceneMouseRelease:
             self._drawing["flag"] = False
+
+    def _duplicate_roi(self) -> Set[QGraphicsRoiItem]:
+        """
+        Duplicate selected ROIs to end_point.
+        """
+        result = set()
+        for roi in self._rois:
+            if roi.isSelected():
+                roi_copy = QGraphicsRoiItem(roi.roi_type,
+                                            roi.sceneBoundingRect().x(),
+                                            roi.sceneBoundingRect().y(),
+                                            roi.rect().width(),
+                                            roi.rect().height())
+                # roi_copy.moveBy(roi.scenePos().x(), roi.scenePos().y())
+                self.scene.addItem(roi_copy)
+                result.add(roi_copy)
+        return result
 
     def _pan(self, *args):
         event = args[0]
