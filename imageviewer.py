@@ -251,19 +251,19 @@ class QImageViewer(ImageViewerUI):
                 self._selecting["rect"].setRect(x0, y0, width, height)
                 self._selecting["rect"].setSelected(True)
 
-                # update outlooking of the ROIs
-                for roi in self._rois:
-                    if self.is_overlap(roi.sceneBoundingRect(), self._selecting["rect"].rect()):
-                        # overlapped means selected roi
-                        roi.setSelected(True)
-                        roi.set_show_handle(True)
-                    else:
-                        # not selected
-                        roi.setSelected(False)
-                        roi.set_show_handle(False)
-
-                    # repaint roi
-                    roi.update()
+                # # update outlooking of the ROIs
+                # for roi in self._rois:
+                #     if self.is_overlap(roi.sceneBoundingRect(), self._selecting["rect"].rect()):
+                #         # overlapped means selected roi
+                #         roi.setSelected(True)
+                #         roi.set_show_handle(True)
+                #     else:
+                #         # not selected
+                #         roi.setSelected(False)
+                #         roi.set_show_handle(False)
+                #
+                #     # repaint roi
+                #     roi.update()
 
         elif event.type() == QEvent.GraphicsSceneMouseRelease:
             end_point = event.scenePos()
@@ -277,6 +277,20 @@ class QImageViewer(ImageViewerUI):
                         roi.setSelected(False)
                         roi.set_show_handle(False)
                         roi.update()
+
+                else:
+                    for roi in self._rois:
+                        if self.is_overlap(roi.sceneBoundingRect(), self._selecting["rect"].rect()):
+                            # overlapped means selected roi
+                            roi.setSelected(True)
+                            roi.set_show_handle(True)
+                        else:
+                            # not selected
+                            roi.setSelected(False)
+                            roi.set_show_handle(False)
+
+                        # # repaint roi
+                        # roi.update()
 
             self._selecting["flag"] = False
             self._rois = self._rois | self._duplicated_rois
