@@ -8,6 +8,7 @@ Author: Leo Cai
 """
 
 from typing import List, Dict, Tuple, Set
+import pickle
 
 import cv2
 import numpy as np
@@ -91,7 +92,7 @@ class QImageViewer(ImageViewerUI):
         :return:
         """
         self.zoom_fit()
-        self.refresh()
+        # self.refresh()
         event.accept()
 
     def keyPressEvent(self, event):
@@ -199,7 +200,6 @@ class QImageViewer(ImageViewerUI):
     def _arrow(self, *args):
         event = args[0]
         modifier = args[1]  # for duplication
-
         if event.type() == QEvent.GraphicsSceneMousePress:
             pos = event.scenePos()
             if modifier == Qt.ControlModifier:
@@ -251,20 +251,6 @@ class QImageViewer(ImageViewerUI):
                 self._selecting["rect"].setRect(x0, y0, width, height)
                 self._selecting["rect"].setSelected(True)
 
-                # # update outlooking of the ROIs
-                # for roi in self._rois:
-                #     if self.is_overlap(roi.sceneBoundingRect(), self._selecting["rect"].rect()):
-                #         # overlapped means selected roi
-                #         roi.setSelected(True)
-                #         roi.set_show_handle(True)
-                #     else:
-                #         # not selected
-                #         roi.setSelected(False)
-                #         roi.set_show_handle(False)
-                #
-                #     # repaint roi
-                #     roi.update()
-
         elif event.type() == QEvent.GraphicsSceneMouseRelease:
             end_point = event.scenePos()
             if self._selecting["flag"]:
@@ -289,8 +275,8 @@ class QImageViewer(ImageViewerUI):
                             roi.setSelected(False)
                             roi.set_show_handle(False)
 
-                        # # repaint roi
-                        # roi.update()
+                        # repaint roi
+                        roi.update()
 
             self._selecting["flag"] = False
             self._rois = self._rois | self._duplicated_rois
@@ -337,7 +323,6 @@ class QImageViewer(ImageViewerUI):
                                             roi.sceneBoundingRect().y(),
                                             roi.rect().width(),
                                             roi.rect().height())
-                # roi_copy.moveBy(roi.scenePos().x(), roi.scenePos().y())
                 self.scene.addItem(roi_copy)
                 result.add(roi_copy)
         return result
@@ -474,7 +459,8 @@ class QImageViewer(ImageViewerUI):
     def add_roi(self, roi_type: RoiType, x: int, y: int, width: int, height: int):
         roi = QGraphicsRoiItem(roi_type, x, y, width, height)
         roi.setPen(QPen(self._roi_color))
-        roi.set_mutable(False)
+        status = True if self._current_tool == "Arrow" else False
+        roi.set_mutable(status)
         self.scene.addItem(roi)
         self._rois.add(roi)
         return roi
@@ -492,4 +478,43 @@ class QImageViewer(ImageViewerUI):
         for item in self._rois:
             self.scene.removeItem(item)
         self._rois.clear()
+
+    def add_roi_matrix(self, roi_type: RoiType=RoiType.Ellipse, *,
+                       rows: int=1, cols: int=1, dx: int=50, dy: int=50,
+                       x: int=50, y: int=50, width: int=100, height: int=50):
+        """
+        Add a matrix of roi
+        :param roi_type: RoiType.Ellipse or RoiType.Rect
+        :param rows: Number of rows
+        :param cols: Number of cols
+        :param dx: col spacing
+        :param dy: row spacing
+        :param x: top left point x
+        :param y: top left point y
+        :param width: ROI width
+        :param height:ROI height
+        :return:
+        """
+
+        for row in range(rows):
+            for col in range(cols):
+                self.add_roi(roi_type, x + col*dx, y + row*dy, width, height)
+
+    def save_rois(self, file_path: str):
+        rois = [(roi.roi_type,
+                 roi.sceneBoundingRect().x(), roi.sceneBoundingRect().y(),
+                 int(roi.rect().width()), int(roi.rect().height()))
+                for roi in self._rois]
+        print(rois)
+        with open(file_path, 'wb') as f:
+            pickle.dump(rois, f)
+
+    def load_rois(self, file_path: str):
+        self.clear_roi()
+        with open(file_path, 'rb') as f:
+            rois = pickle.load(f)
+            print(rois)
+
+        for roi in rois:
+            self.add_roi(*roi)
 
